@@ -1,0 +1,1154 @@
+<!doctype html> <!-- Declare HTML5 document type -->
+<!--
+  Multi-Person / Multi-Job Pay Calculator (Client-side only)
+  ---------------------------------------------------------
+  - Supports unlimited people, each with unlimited jobs.
+  - Each job has its own: hourly rate, hours/week, and weeks/year.
+  - Totals are calculated live in the browser (no server calls).
+  - This page does NOT persist or upload data: refreshing/closing the tab clears everything.
+-->
+<html lang="en"> <!-- Set document language -->
+<head> <!-- Document metadata container -->
+  <meta charset="utf-8" /> <!-- Use UTF-8 encoding -->
+  <meta name="viewport" content="width=device-width,initial-scale=1" /> <!-- Responsive layout on mobile -->
+  <title>Cozy Multi-Person Pay Calculator</title> <!-- Browser tab title -->
+
+  <style> /* Begin CSS */
+
+    :root{ /* CSS variables for consistent theming */
+      --bg1:#2b2f36;          /* Dark gray */          /* White */
+      --bg2:#141619;          /* Deeper gray */          /* Light gray background */
+      --card:#ffffff;         /* White card background */
+      --panel:#ffffff;        /* White nested panel */
+      --ink:#111827;          /* Near-black text */
+      --muted:#6b7280;        /* Secondary text */
+      --line:#d1d5db;         /* Soft gray border */
+      --shadow: 0 10px 25px rgba(0,0,0,.08); /* Subtle shadow */
+      --radius: 18px;         /* Global corner radius */
+      --accent:#031d42;       /* Navy accent */
+      --focus: 0 0 0 4px rgba(3,29,66,.18); /* Focus ring */
+    } /* End :root vars */
+
+    *{ box-sizing:border-box; } /* Make sizing predictable */
+    html{ -webkit-text-size-adjust: 100%; } /* Prevent iOS text auto-resize */
+    body{ /* Page body styles */
+      margin:0; /* Remove default margin */
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji"; /* Clean system font stack */
+      background: radial-gradient(1200px 700px at 15% 0%, var(--bg1) 0%, var(--bg2) 70%); /* Light gray background */
+      color:var(--ink); /* Default text color */
+      line-height:1.35; /* Readable line height */
+    } /* End body */
+
+    .wrap{ /* Main page container */
+      max-width: 1060px; /* Limit line length */
+      margin: 0 auto; /* Center horizontally */
+      padding: 28px 16px 60px; /* Comfortable spacing */
+    } /* End .wrap */
+
+    header{ /* Top header layout */
+      display:flex; /* Horizontal layout */
+      align-items:flex-end; /* Align title and buttons */
+      justify-content:space-between; /* Title left, buttons right */
+      gap:16px; /* Space between columns */
+      margin-bottom: 18px; /* Space under header */
+    } /* End header */
+
+    .title{ /* Title block */
+      display:flex; /* Stack title/subtitle */
+      flex-direction:column; /* Vertical layout */
+      gap:6px; /* Small gap */
+    } /* End .title */
+
+    h1{ /* Page title */
+      margin:0; /* Remove default margin */
+      font-size: clamp(20px, 3vw, 28px); /* Responsive font size */
+      letter-spacing:-0.02em; /* Slightly tighter */
+      color: #f9fafb; /* Dark text */
+    } /* End h1 */
+
+    .subtitle{ /* Subtitle under title */
+      color: rgba(249,250,251,.72); /* Muted gray */
+      font-size: 14px; /* Small text */
+    } /* End .subtitle */
+
+    .toolbar{ /* Header buttons row */
+      display:flex; /* Place buttons side-by-side */
+      gap:10px; /* Space between buttons */
+      flex-wrap:wrap; /* Wrap if narrow */
+      justify-content:flex-end; /* Align right */
+    } /* End .toolbar */
+
+    button{ /* Base button styling */
+      border:1px solid var(--line); /* Soft gray border */
+      background: #ffffff; /* White button */
+      color: var(--ink); /* Dark text */
+      border-radius: 999px; /* Pill shape */
+      padding: 10px 14px; /* Comfortable tap area */
+      font-weight:700; /* Bold-ish */
+      cursor:pointer; /* Pointer cursor */
+      box-shadow: 0 1px 0 rgba(0,0,0,.04); /* Subtle lift */
+      transition: transform .06s ease, background .2s ease, border-color .2s ease; /* Smooth interactions */
+      user-select:none; /* Prevent selection */
+      -webkit-tap-highlight-color: transparent; /* Remove mobile tap highlight */
+    } /* End button */
+
+    button:hover{ transform: translateY(-1px); background: #f3f4f6; } /* Hover */ /* Hover lift */
+    button:active{ transform: translateY(0px); } /* Press */ /* Press down */
+
+    .primary{ /* Primary action button */
+      background: var(--accent); /* Navy fill */
+      color:#ffffff; /* White text */
+      border-color: transparent; /* No border */
+    } /* End .primary */ /* End .primary */
+
+    .danger{ /* Destructive action button */
+      background: #ffffff; /* White */
+      border-color: #fecaca; /* Light red border */
+      color:#b42318; /* Red text */
+    } /* End .danger */ /* End .danger */
+
+    .small{ /* Small button variant */
+      padding: 10px 14px; /* Keep tap friendly */
+      font-size: 13px; /* Slightly smaller text */
+      border-radius: 12px; /* Rounded rectangle */
+    } /* End .small */
+
+    .grid{ /* Two-column layout (desktop) */
+      display:grid; /* CSS grid */
+      grid-template-columns: 1.25fr .75fr; /* People area wider than summary */
+      gap: 16px; /* Space between columns */
+      align-items:start; /* Align cards at top */
+    } /* End .grid */
+
+    @media (max-width: 920px){ /* Tablet and below */
+      .grid{ grid-template-columns: 1fr; } /* Stack columns */
+    } /* End media 920 */
+
+    .card{ /* Main card component */
+      background: var(--card); /* Warm cream background */
+      border: 1px solid var(--line); /* Soft border */
+      border-radius: var(--radius); /* Round corners */
+      box-shadow: var(--shadow); /* Shadow */
+      overflow: hidden; /* Clip inner corners */
+    } /* End .card */
+
+    .card .pad{ padding: 16px; } /* Standard padding */
+    .card h2{ margin:0 0 10px; font-size: 16px; letter-spacing:-0.01em; } /* Card title */
+    .muted{ color: var(--muted); } /* Muted text helper */
+    .tiny{ font-size: 12px; color: var(--muted); } /* Small helper text */
+
+    .people{ /* Container for all people cards */
+      display:flex; /* Vertical stack */
+      flex-direction:column; /* Column layout */
+      gap: 14px; /* Space between person cards */
+      padding: 0 16px 16px; /* Inner spacing */
+    } /* End .people */
+
+    .personCard{ /* Individual person card */
+      border:1px solid var(--line); /* Border */
+      border-radius: 16px; /* Rounded corners */
+      background: var(--panel); /* Slightly different cream */
+      overflow:hidden; /* Clip corners */
+      box-shadow: 0 6px 18px rgba(0,0,0,.08); /* Softer shadow */
+    } /* End .personCard */
+
+    @keyframes popIn { /* Animation for new person */
+      0%   { transform: translateY(10px); opacity: 0; } /* Start state */
+      100% { transform: translateY(0); opacity: 1; } /* End state */
+    } /* End keyframes */
+
+    .newlyAdded{ /* Class applied temporarily when added */
+      animation: popIn .22s ease-out both; /* Run pop animation */
+      outline: 2px solid rgba(201,119,58,.24); /* Highlight */
+      outline-offset: 2px; /* Separate outline */
+    } /* End .newlyAdded */
+
+    .personHead{ /* Person card header */
+      display:flex; /* Horizontal */
+      align-items:center; /* Center vertically */
+      justify-content:space-between; /* Title left, actions right */
+      gap:10px; /* Gap */
+      padding: 14px 14px 10px; /* Spacing */
+      border-bottom: 1px solid var(--line); /* Divider */
+      background: #ffffff; /* Slightly darker cream */
+    } /* End .personHead */
+
+    .personName{ display:flex; flex-direction:column; gap:2px; min-width: 220px; } /* Name stack */
+    .personName strong{ font-size: 14px; } /* Name text */
+    .personName span{ font-size:12px; color:var(--muted); } /* Subtitle */
+
+    .personActions{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; } /* Action buttons */
+    .personActions button{ border: 1px solid var(--line); background: #ffffff; color: var(--ink); } /* Actions base */
+    .personActions .primary{ background: var(--accent); border-color: transparent; color: #ffffff; } /* Primary in header */
+    .personActions .danger{ background: #ffffff; border-color:#f1c9c9; color:#b42318; } /* Remove button */
+
+    .form{ /* Person form grid */
+      padding: 14px; /* Inner padding */
+      display:grid; /* Grid layout */
+      grid-template-columns: repeat(12, 1fr); /* 12-column grid */
+      gap: 12px; /* Gap */
+    } /* End .form */
+
+    label{ /* Label stack */
+      display:flex; /* Column */
+      flex-direction:column; /* Stack label + input */
+      gap:6px; /* Gap */
+      font-size: 12px; /* Label size */
+      color: var(--muted); /* Muted */
+    } /* End label */
+
+    input, select, textarea{ /* Inputs */
+      width:100%; /* Full width */
+      border: 1px solid var(--line); /* Border */
+      background: #fff; /* White input */
+      padding: 12px 12px; /* Touch friendly */
+      border-radius: 12px; /* Rounded */
+      font-size: 14px; /* Base font size */
+      color: var(--ink); /* Text color */
+      outline:none; /* Remove default outline */
+      transition: box-shadow .15s ease, border-color .15s ease; /* Smooth focus */
+    } /* End input/select */
+    input:focus, select:focus, textarea:focus{ border-color: rgba(201,119,58,.60); box-shadow: var(--focus); } /* Focus state */
+
+    .col-12{ grid-column: span 12; } /* Span helpers */
+    .col-6{ grid-column: span 6; } /* Span helpers */
+    .col-4{ grid-column: span 4; } /* Span helpers */
+    .col-3{ grid-column: span 3; } /* Span helpers */
+
+    .sectionBlock{ /* Panel for grouped fields */
+      grid-column: span 12; /* Full width panel */
+      border: 1px solid var(--line); /* Border */
+      border-radius: 16px; /* Round */
+      padding: 16px; /* Padding (bigger) */
+      background: #ffffff; /* Warm panel */
+    } /* End .sectionBlock */
+
+    .sectionTitle{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom: 8px; } /* Title row */
+    .sectionTitle h3{ margin:0; font-size: 13px; color: var(--ink); letter-spacing:-0.01em; } /* H3 style */
+    .hidden{ display:none !important; } /* Utility: hide */
+
+    .dedRow{ /* One deduction row layout */
+      display:grid; /* Grid */
+      grid-template-columns: 1.2fr .8fr .8fr auto; /* Label, type, value, remove */
+      gap:10px; /* Gap */
+      align-items:end; /* Align bottoms */
+      margin-top: 10px; /* Space from previous */
+    } /* End .dedRow */
+
+    .dedRow button{ /* Remove deduction button */
+      border-radius: 12px; /* Rounded */
+      padding: 10px 12px; /* Padding */
+      height: 44px; /* Tap target */
+      white-space:nowrap; /* Keep in one line */
+      border: 1px solid var(--line); /* Border */
+      background: #fff; /* Background */
+      color: #b42318; /* Red-ish */
+    } /* End .dedRow button */
+
+    .results{ /* Totals grid */
+  display:grid; /* Grid */
+  grid-template-columns: repeat(3, 1fr); /* 3 columns */
+  gap: 10px; /* Gap */
+  margin-top: 10px; /* Space */
+
+  /* Outcome container (light) */
+  background: var(--g2); /* Light gray */
+  border: 1px solid var(--line); /* Soft border */
+  border-radius: 18px; /* Rounded */
+  padding: 10px; /* Inner padding */
+} /* End .results */
+
+.pill{ /* Metric pill (default: light) */
+  border: 1px solid var(--line);
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 12px;
+  color: var(--ink);
+} /* End .pill */
+
+.pill .k{ font-size: 12px; color: var(--muted); } /* Label */
+.pill .v{ font-size: 16px; font-weight: 800; margin-top: 4px; letter-spacing:-0.01em; color: var(--ink); } /* Value */
+
+/* Dark pills (only for selected metrics) */
+.pill.pillDark{
+  background: #0b0b0c;
+  border: 1px solid #111827;
+  color: #ffffff;
+}
+.pill.pillDark .k{ color: rgba(255,255,255,.72); }
+.pill.pillDark .v{ color: #ffffff; }
+
+
+    .footerLine{ /* Card footer row */
+      margin-top: 12px; /* Space */
+      padding-top: 12px; /* Space */
+      border-top:1px dashed var(--line); /* Dashed divider */
+      display:flex; /* Row */
+      justify-content:space-between; /* Split */
+      gap:12px; /* Gap */
+      flex-wrap:wrap; /* Wrap */
+      color:var(--muted); /* Muted */
+      font-size: 12px; /* Small */
+    } /* End .footerLine */
+
+    .emptyState{ /* Empty state panel */
+      padding: 18px; /* Padding */
+      color: var(--muted); /* Muted */
+      font-size: 14px; /* Size */
+      border: 1px dashed var(--line); /* Dashed border */
+      border-radius: 16px; /* Round */
+      background: #ffffff; /* Warm panel */
+    } /* End .emptyState */
+
+    /* ---------- Mobile adaptation ---------- */
+    @media (max-width: 560px){ /* Small screens */
+      .wrap{ padding: 18px 12px 44px; } /* Tighter padding */
+
+      header{ flex-direction: column; align-items: stretch; gap: 12px; } /* Stack header */
+      .toolbar{ justify-content: stretch; gap: 10px; } /* Full width buttons row */
+      .toolbar button{ width: 100%; padding: 12px 14px; } /* Full-width buttons */
+
+      input, select{ font-size: 16px; } /* Prevent iOS zoom-on-focus */
+
+      .personHead{ flex-direction: column; align-items: stretch; } /* Stack person header */
+      .personName{ min-width: 0; } /* Remove min width */
+      .personActions{ width: 100%; flex-direction: column; align-items: stretch; } /* Stack actions */
+      .personActions button{ width: 100%; } /* Full width action buttons */
+
+      .col-6,.col-4,.col-3{ grid-column: span 12; } /* Make fields full width */
+
+      .dedRow{ grid-template-columns: 1fr; } /* Stack deduction row */
+      .dedRow button{ width: 100%; } /* Full width remove button */
+
+      .results{ grid-template-columns: 1fr; } /* Stack metrics */
+      .people{ padding: 0 12px 12px; gap: 12px; } /* Adjust people padding */
+      .form{ padding: 12px; } /* Tighter form padding */
+    } /* End mobile media */
+
+  
+    /* ---------- Reset confirmation dialog (popup) ---------- */
+    dialog{ /* Native HTML dialog element */
+      width: min(520px, calc(100% - 24px)); /* Responsive width */
+      border: 1px solid var(--line); /* Soft border */
+      border-radius: 18px; /* Rounded corners */
+      padding: 0; /* We'll control padding inside */
+      background: var(--card); /* Warm cream background */
+      box-shadow: 0 20px 60px rgba(0,0,0,.35); /* Stronger modal shadow */
+      overflow: hidden; /* Clip corners */
+    } /* End dialog */
+
+    dialog::backdrop{ /* Dark overlay behind dialog */
+      background: rgba(0,0,0,.55); /* Dim background */
+      backdrop-filter: blur(1.5px); /* Slight blur (supported browsers) */
+    } /* End backdrop */
+
+    .dlgHead{ /* Dialog header */
+      padding: 14px 16px; /* Padding */
+      background: #ffffff; /* Warm header */
+      border-bottom: 1px solid var(--line); /* Divider */
+      display:flex; /* Layout */
+      align-items:center; /* Center */
+      justify-content:space-between; /* Title left */
+      gap: 12px; /* Gap */
+    } /* End .dlgHead */
+
+    .dlgTitle{ /* Dialog title text */
+      margin: 0; /* No margin */
+      font-size: 14px; /* Small title */
+      font-weight: 800; /* Bold */
+      letter-spacing: -0.01em; /* Tight */
+      color: var(--ink); /* Dark text */
+    } /* End .dlgTitle */
+
+    .dlgBody{ /* Dialog main content */
+      padding: 14px 16px; /* Padding */
+      color: var(--ink); /* Text color */
+      font-size: 14px; /* Readable */
+    } /* End .dlgBody */
+
+    .dlgActions{ /* Dialog button row */
+      padding: 14px 16px; /* Padding */
+      border-top: 1px solid var(--line); /* Divider */
+      display:flex; /* Row */
+      gap: 10px; /* Gap */
+      justify-content:flex-end; /* Align right */
+      flex-wrap: wrap; /* Wrap on mobile */
+      background: #ffffff; /* Warm footer */
+    } /* End .dlgActions */
+
+    .dlgBtn{ /* Dialog buttons */
+      border: 1px solid var(--line); /* Border */
+      background: #fff; /* White */
+      color: var(--ink); /* Text color */
+      border-radius: 999px; /* Pill */
+      padding: 10px 14px; /* Tap target */
+      font-weight: 700; /* Bold */
+      cursor: pointer; /* Pointer */
+    } /* End .dlgBtn */
+
+    .dlgBtn.primary{ /* Confirm button */
+      background: var(--accent); /* Caramel */
+      color: #ffffff; /* Dark text */
+      border-color: transparent; /* No border */
+    } /* End .dlgBtn.primary */
+
+    .dlgBtn.ghost{ /* Cancel button */
+      background: #fff; /* White */
+      color: var(--ink); /* Dark */
+      border-color: var(--line); /* Border */
+    } /* End .dlgBtn.ghost */
+
+    @media (max-width: 560px){ /* Mobile tweaks */
+      .dlgActions{ justify-content: stretch; } /* Full-width buttons */
+      .dlgBtn{ width: 100%; } /* Buttons stack */
+    } /* End mobile tweaks */
+
+  
+    
+
+/* ---------- Requested: Deduction buttons navy (#031d42) ---------- */
+    button[data-add-deduction], /* Top "+ Deduction" button */
+    button[data-add-deduction-inline]{ /* Inline "+ Add another deduction" button */
+      background: #031d42 !important; /* Navy background */
+      color: #ffffff !important; /* White text */
+      border-color: transparent !important; /* No border */
+    } /* End deduction button styling */
+
+    button[data-add-deduction]:hover,
+    button[data-add-deduction-inline]:hover{
+      background: #052a5f !important; /* Slightly lighter navy on hover */
+      transform: translateY(-1px); /* Keep existing hover feel */
+    } /* End hover */
+
+    button[data-add-deduction]:active,
+    button[data-add-deduction-inline]:active{
+      transform: translateY(0px); /* Pressed state */
+    } /* End active */
+
+  
+    /* ---------- Job boxes (stacked, full-width; supports unlimited jobs) ---------- */
+    .jobGrid{ /* Jobs list: stack job cards vertically for bigger boxes */
+      display:flex; /* Use flex for vertical stacking */
+      flex-direction:column; /* One job per row */
+      gap: 14px; /* Space between job boxes */
+    } /* End .jobGrid */
+
+    .jobBox{ /* Each job box */
+      border: 1px solid var(--line); /* Border */
+      border-radius: 14px; /* Rounded corners */
+      background: #ffffff; /* White box */
+      padding: 16px; /* Padding (bigger) */
+    } /* End .jobBox */
+
+.jobBoxHead{ /* Header row inside a job box */
+      display: flex; /* Row layout */
+      align-items: center; /* Center vertically */
+      justify-content: space-between; /* Title left, toggle right */
+      gap: 10px; /* Gap */
+      margin-bottom: 10px; /* Space below header */
+    } /* End .jobBoxHead */
+
+    .jobBoxTitle{ /* Job box title */
+      font-weight: 900; /* Bold */
+      font-size: 14px; /* Size */
+      color: var(--ink); /* Text color */
+      letter-spacing: -0.01em; /* Tight */
+    } /* End .jobBoxTitle */
+
+.jobFields{ /* Grid for fields inside a job box */
+      display: grid; /* Grid */
+      grid-template-columns: repeat(12, 1fr); /* 12-column grid */
+      gap: 12px; /* Gap */
+    } /* End .jobFields */
+/* ---------- Jobs header row controls (title + actions) ---------- */
+    .jobsHead{ /* Jobs header row */
+      flex-wrap: wrap; /* Allow wrapping on small screens */
+    } /* End .jobsHead */
+
+    .jobsHeadRight{ /* Right side of Jobs header */
+      display:flex; /* Row */
+      align-items:center; /* Center */
+      gap:10px; /* Space */
+      flex-wrap:wrap; /* Wrap if narrow */
+      justify-content:flex-end; /* Align right */
+    } /* End .jobsHeadRight */
+
+    .job2Toggle{ /* Toggle label styling */
+      display:inline-flex; /* Inline row */
+      align-items:center; /* Center */
+      gap:10px; /* Gap between checkbox and text */
+      padding: 10px 12px; /* Tap target */
+      border: 1px solid var(--line); /* Border */
+      border-radius: 999px; /* Pill */
+      background: #ffffff; /* White background */
+      color: var(--ink); /* Dark text */
+      font-weight: 800; /* Bold */
+      font-size: 12px; /* Small label */
+      cursor: pointer; /* Clickable */
+      user-select:none; /* No selection */
+    } /* End .job2Toggle */
+
+    .job2Toggle input{ /* Checkbox itself */
+      width: 18px; /* Size */
+      height: 18px; /* Size */
+      accent-color: var(--accent); /* Navy check */
+    } /* End checkbox */
+
+    @media (max-width: 560px){ /* Mobile */
+      .jobsHeadRight{ width:100%; justify-content:space-between; } /* Spread note + toggle */
+      .job2Toggle{ width:100%; justify-content:center; } /* Full width toggle */
+    } /* End mobile */
+
+
+    .privacyBanner{ /* Bottom privacy/disclaimer panel */
+      margin-top: 18px; /* Space above */
+      background: #ffffff; /* White banner */
+      border: 1px solid var(--line); /* Subtle border */
+      border-radius: var(--radius); /* Rounded corners */
+      padding: 14px 16px; /* Comfortable padding */
+      box-shadow: var(--shadow); /* Soft shadow */
+      color: var(--ink); /* Dark text */
+      font-size: 14px; /* Readable */
+      line-height: 1.45; /* Comfortable */
+    } /* End .privacyBanner */
+
+    .privacyBanner strong{ font-weight: 800; } /* Bold label */
+
+  </style> <!-- End CSS -->
+</head> <!-- End head -->
+
+<body> <!-- Begin body -->
+  <div class="wrap"> <!-- Main page wrapper -->
+
+    <header> <!-- Top header -->
+      <div class="title"> <!-- Title group -->
+        <h1>Multi-Person Pay Calculator</h1> <!-- Main title -->
+        <div class="subtitle">Weekly + yearly totals</div> <!-- Subtitle -->
+      </div> <!-- End title -->
+
+      <div class="toolbar"> <!-- Header buttons -->
+        <button class="primary" id="addPersonBtn">+ Add person</button> <!-- Add person button -->
+        <button id="resetBtn" class="danger" title="Clear everything">Reset</button> <!-- Reset button -->
+      </div> <!-- End toolbar -->
+    </header> <!-- End header -->
+
+    <div class="grid"> <!-- Main 2-column layout -->
+
+      <section class="card"> <!-- Left: People -->
+        <div class="pad"> <!-- Card padding -->
+          <h2>People</h2> <!-- Card title -->
+          <div class="tiny">Yearly estimate uses each job’s weeks/year. Weekly extras and “$ Fixed (weekly)” deductions scale using estimated working weeks/year (auto).</div> <!-- Hint -->
+        </div> <!-- End pad -->
+
+        <div id="people" class="people"></div> <!-- Container where person cards render -->
+
+        <div class="pad"> <!-- Footer pad -->
+          <div class="footerLine"> <!-- Footer row -->
+            <span>Auto-calculates while you type.</span> <!-- Footer note -->
+            <span id="peopleCount">0 people</span> <!-- People count -->
+          </div> <!-- End footer row -->
+        </div> <!-- End pad -->
+      </section> <!-- End left card -->
+
+      <aside class="card"> <!-- Right: Summary -->
+        <div class="pad"> <!-- Card padding -->
+          <h2>Grand summary</h2> <!-- Title -->
+          <div class="muted" style="font-size:13px;">Totals across everyone</div> <!-- Subtitle -->
+
+          <div class="sectionTitle" style="margin-top:14px;"> <!-- Weekly header -->
+            <h3>Weekly totals</h3> <!-- Weekly label -->
+            <span class="tiny">Assumes inputs are weekly</span> <!-- Weekly note -->
+          </div> <!-- End weekly header -->
+
+          <div class="results"> <!-- Weekly summary metrics -->
+            <div class="pill pillDark"><div class="k">Total gross (weekly)</div><div class="v" id="sumGrossW">$0.00</div></div> <!-- Gross -->
+            <div class="pill pillDark"><div class="k">Total deductions (weekly)</div><div class="v" id="sumDedW">$0.00</div></div> <!-- Deductions -->
+            <div class="pill pillDark"><div class="k">Total net (weekly)</div><div class="v" id="sumNetW">$0.00</div></div> <!-- Net -->
+          </div> <!-- End results -->
+
+          <div class="sectionTitle" style="margin-top:14px;"> <!-- Yearly header -->
+            <h3>Yearly estimate</h3> <!-- Yearly label -->
+            <span class="tiny">Uses each job’s weeks/year</span> <!-- Yearly note -->
+          </div> <!-- End yearly header -->
+
+          <div class="results"> <!-- Yearly summary metrics -->
+            <div class="pill pillDark"><div class="k">Total gross (yearly)</div><div class="v" id="sumGrossY">$0.00</div></div> <!-- Gross yearly -->
+            <div class="pill pillDark"><div class="k">Total deductions (yearly)</div><div class="v" id="sumDedY">$0.00</div></div> <!-- Ded yearly -->
+            <div class="pill pillDark"><div class="k">Total net (yearly)</div><div class="v" id="sumNetY">$0.00</div></div> <!-- Net yearly -->
+          </div> <!-- End results -->
+
+          <div class="results" style="margin-top:10px;"> <!-- Averages -->
+            <div class="pill pillDark"><div class="k">Average net per person (weekly)</div><div class="v" id="avgNetW">$0.00</div></div> <!-- Avg weekly -->
+            <div class="pill pillDark"><div class="k">Average net per person (yearly)</div><div class="v" id="avgNetY">$0.00</div></div> <!-- Avg yearly -->
+            <div class="pill pillDark"><div class="k">People</div><div class="v" id="sumPeople">0</div></div> <!-- People total -->
+          </div> <!-- End averages -->
+
+          <div class="tiny" style="margin-top:10px;">Simple calculator (not tax advice).</div> <!-- Disclaimer -->
+        </div> <!-- End pad -->
+      </aside> <!-- End summary card -->
+
+    </div> <!-- End grid -->
+
+    <footer class="privacyBanner" role="note" aria-label="Privacy disclaimer">
+      <strong>Disclaimer:</strong> This webpage doesn't store any information on the page; all of the data that you enter will be wiped out.
+    </footer>
+  </div> <!-- End wrap -->
+
+  <!-- Person template: cloned for each new person -->
+  <template id="personTemplate">
+    <div class="personCard" data-person> <!-- Person card wrapper -->
+
+      <div class="personHead"> <!-- Person header -->
+        <div class="personName"> <!-- Name block -->
+          <strong data-title>New person</strong> <!-- Person title (updates with name) -->
+          <span data-subtitle>Enter pay details below</span> <!-- Subtitle -->
+        </div> <!-- End name block -->
+
+        <div class="personActions"> <!-- Header action buttons -->
+          <button class="primary" type="button" data-add-deduction>+ Deduction</button> <!-- Add deduction (top) -->
+          <button class="danger" type="button" data-remove-person>Remove</button> <!-- Remove person -->
+        </div> <!-- End actions -->
+      </div> <!-- End header -->
+
+      <div class="form"> <!-- Person form -->
+
+        <label class="col-6"> <!-- Name field label -->
+          Name <!-- Label text -->
+          <input type="text" data-name placeholder="e.g., Alex" /> <!-- Name input -->
+        </label> <!-- End label -->
+        <!-- Jobs (multiple jobs) -->
+        <div class="sectionBlock"> <!-- Jobs block -->
+          <div class="sectionTitle jobsHead"> <!-- Jobs header -->
+            <h3>Jobs</h3> <!-- Title -->
+            <div class="jobsHeadRight"> <!-- Right side -->
+              <button type="button" class="primary small" data-add-job>+ Add job</button> <!-- Add job -->
+            </div> <!-- End right side -->
+          </div> <!-- End header -->
+
+          <div class="jobGrid" data-jobs-list></div> <!-- Jobs list (cards added by JS) -->
+          <div class="tiny" style="margin-top:10px;">
+            Total job-weeks/year: <strong data-jobweeks-sum>52</strong>
+          </div>
+        </div> <!-- End jobs block -->
+
+        <label class="col-4"> <!-- Weekly extra label -->
+          Extra pay (weekly) ($) <!-- Label -->
+          <input type="number" data-bonusW min="0" step="0.01" placeholder="e.g., 50" inputmode="decimal" /> <!-- Weekly bonus input -->
+        </label> <!-- End label -->
+
+        <label class="col-4"> <!-- Yearly extra label -->
+          Extra pay (yearly) ($) <!-- Label -->
+          <input type="number" data-bonusY min="0" step="0.01" placeholder="e.g., 1000" inputmode="decimal" /> <!-- Yearly bonus input -->
+        </label> <!-- End label -->
+        <!-- Deductions -->
+        <div class="sectionBlock"> <!-- Deductions block -->
+          <div class="sectionTitle"> <!-- Deductions header -->
+            <h3>Deductions</h3> <!-- Title -->
+            <span class="tiny">Fixed weekly, % of gross, per hour, or fixed yearly</span> <!-- Note -->
+          </div> <!-- End header -->
+
+          <div data-deduction-list></div> <!-- Where deduction rows go -->
+
+          <div style="display:flex; justify-content:flex-end; margin-top:12px;"> <!-- Align add button -->
+            <button type="button" class="primary small" data-add-deduction-inline>+ Add another deduction</button> <!-- Inline add button -->
+          </div> <!-- End align -->
+        </div> <!-- End deductions block -->
+
+        <!-- Totals -->
+        <div class="col-12"> <!-- Totals wrapper -->
+
+          <div class="sectionTitle"> <!-- Weekly totals header -->
+            <h3>Weekly totals</h3> <!-- Title -->
+            <span class="tiny">Weekly gross = pay + weekly extra</span> <!-- Note -->
+          </div> <!-- End header -->
+
+          <div class="results"> <!-- Weekly totals pills -->
+            <div class="pill pillDark"><div class="k">Gross (weekly)</div><div class="v" data-grossW>$0.00</div></div> <!-- Weekly gross -->
+            <div class="pill pillDark"><div class="k">Deductions (weekly)</div><div class="v" data-dedW>$0.00</div></div> <!-- Weekly deductions -->
+            <div class="pill pillDark"><div class="k">Net (weekly)</div><div class="v" data-netW>$0.00</div></div> <!-- Weekly net -->
+          </div> <!-- End weekly pills -->
+
+          <div class="sectionTitle" style="margin-top:12px;"> <!-- Yearly totals header -->
+            <h3>Yearly estimate</h3> <!-- Title -->
+            <span class="tiny">Uses each job’s weeks/year + yearly extra</span> <!-- Note -->
+          </div> <!-- End header -->
+
+          <div class="results"> <!-- Yearly totals pills -->
+            <div class="pill pillDark"><div class="k">Gross (yearly)</div><div class="v" data-grossY>$0.00</div></div> <!-- Yearly gross -->
+            <div class="pill pillDark"><div class="k">Deductions (yearly)</div><div class="v" data-dedY>$0.00</div></div> <!-- Yearly deductions -->
+            <div class="pill pillDark"><div class="k">Net (yearly)</div><div class="v" data-netY>$0.00</div></div> <!-- Yearly net -->
+          </div> <!-- End yearly pills -->
+        </div> <!-- End totals wrapper -->
+
+      </div> <!-- End form -->
+    </div> <!-- End person card -->
+  </template> <!-- End person template -->
+
+  <!-- Job template: cloned for each job inside a person -->
+  <template id="jobTemplate">
+    <div class="jobBox" data-job> <!-- Job box -->
+      <div class="jobBoxHead"> <!-- Job header -->
+        <div class="jobBoxTitle" data-job-title>Job</div> <!-- Job title -->
+        <button type="button" class="danger small" data-remove-job>Remove</button> <!-- Remove job -->
+      </div> <!-- End job header -->
+
+      <div class="jobFields"> <!-- Job fields -->
+        <label class="col-4"> <!-- Rate label -->
+          Rate ($/hr) <!-- Label -->
+          <input type="number" data-job-rate min="0" step="0.01" placeholder="e.g., 20" inputmode="decimal" /> <!-- Rate input -->
+        </label> <!-- End label -->
+
+        <label class="col-4"> <!-- Hours label -->
+          Hours/week <!-- Label -->
+          <input type="number" data-job-hours min="0" step="0.01" placeholder="e.g., 40" inputmode="decimal" /> <!-- Hours input -->
+        </label> <!-- End label -->
+
+        <label class="col-4"> <!-- Weeks label -->
+          Weeks/year <!-- Label -->
+          <input type="number" data-job-weeks min="0" step="1" placeholder="e.g., 52" inputmode="numeric" /> <!-- Weeks input -->
+        </label> <!-- End label -->
+      </div> <!-- End job fields -->
+    </div> <!-- End job box -->
+  </template> <!-- End job template -->
+
+<!-- Deduction row template -->
+  <template id="deductionTemplate">
+    <div class="dedRow" data-deduction> <!-- Deduction row wrapper -->
+
+      <label> <!-- Deduction label field -->
+        Label <!-- Field label -->
+        <input type="text" data-ded-label placeholder="e.g., Insurance" /> <!-- Text input -->
+      </label> <!-- End label -->
+
+      <label> <!-- Type selector -->
+        Type <!-- Field label -->
+        <select data-ded-type> <!-- Deduction type dropdown -->
+          <option value="fixed_week">$ Fixed (weekly)</option> <!-- Weekly fixed amount -->
+          <option value="percent_gross">% of gross</option> <!-- Percent of gross -->
+          <option value="per_hour">$ per hour</option> <!-- Per-hour amount -->
+          <option value="fixed_year">$ Fixed (yearly)</option> <!-- Yearly fixed amount -->
+        </select> <!-- End select -->
+      </label> <!-- End label -->
+
+      <label> <!-- Value field -->
+        Value <!-- Field label -->
+        <input type="number" data-ded-value min="0" step="0.01" placeholder="e.g., 25" inputmode="decimal" /> <!-- Numeric input -->
+      </label> <!-- End label -->
+
+      <button class="danger" type="button" data-remove-deduction>Remove</button> <!-- Remove row button -->
+    </div> <!-- End deduction row -->
+  </template> <!-- End deduction template -->
+
+  
+  <!-- Reset confirmation dialog (popup) -->
+  <dialog id="resetDialog"> <!-- Native dialog element -->
+    <div class="dlgHead"> <!-- Dialog header -->
+      <h3 class="dlgTitle">Reset everything?</h3> <!-- Dialog title -->
+    </div> <!-- End header -->
+    <div class="dlgBody"> <!-- Dialog body -->
+      This will remove all people and deductions. Are you sure you want to reset? <!-- Confirmation message -->
+    </div> <!-- End body -->
+    <div class="dlgActions"> <!-- Dialog actions -->
+      <button type="button" class="dlgBtn ghost" id="resetNoBtn">No, keep it</button> <!-- Cancel button -->
+      <button type="button" class="dlgBtn primary" id="resetYesBtn">Yes, reset</button> <!-- Confirm button -->
+    </div> <!-- End actions -->
+  </dialog> <!-- End dialog -->
+
+
+
+
+  <script> // Begin JavaScript
+
+    // ---------- DOM references (grab elements once) ----------
+    const peopleEl = document.getElementById("people"); // Container that holds all person cards
+    const personTemplate = document.getElementById("personTemplate"); // <template> for person cards
+    const jobTemplate = document.getElementById("jobTemplate"); // <template> for job boxes (inside a person)
+    const deductionTemplate = document.getElementById("deductionTemplate"); // <template> for deduction rows
+
+    const addPersonBtn = document.getElementById("addPersonBtn"); // Add person button
+    const resetBtn = document.getElementById("resetBtn"); // Reset button
+
+    const resetDialog = document.getElementById("resetDialog"); // Reset confirmation dialog
+    const resetYesBtn = document.getElementById("resetYesBtn"); // "Yes, reset" button
+    const resetNoBtn  = document.getElementById("resetNoBtn");  // "No, keep it" button
+
+    const peopleCountEl = document.getElementById("peopleCount"); // People count label
+    const sumGrossWEl = document.getElementById("sumGrossW"); // Summary weekly gross element
+    const sumDedWEl   = document.getElementById("sumDedW");   // Summary weekly deductions element
+    const sumNetWEl   = document.getElementById("sumNetW");   // Summary weekly net element
+    const sumGrossYEl = document.getElementById("sumGrossY"); // Summary yearly gross element
+    const sumDedYEl   = document.getElementById("sumDedY");   // Summary yearly deductions element
+    const sumNetYEl   = document.getElementById("sumNetY");   // Summary yearly net element
+    const avgNetWEl   = document.getElementById("avgNetW");   // Summary weekly avg net element
+    const avgNetYEl   = document.getElementById("avgNetY");   // Summary yearly avg net element
+    const sumPeopleEl = document.getElementById("sumPeople"); // Summary people count element
+
+    // ---------- Helper functions ----------
+
+    /**
+     * money(n): format a number as USD currency safely.
+     */
+    function money(n){ // Define money formatter
+      const safe = Number.isFinite(n) ? n : 0; // Replace NaN/Infinity with 0
+      return safe.toLocaleString(undefined, { style: "currency", currency: "USD" }); // Format as USD
+    } // End money()
+
+    /**
+     * num(value): parse float input safely; returns 0 if invalid.
+     */
+    function num(value){ // Define safe number parser
+      const n = parseFloat(value); // Convert string to float
+      return Number.isFinite(n) ? n : 0; // Return parsed number or 0
+    } // End num()
+
+    /**
+     * intOr(value, fallback): parse positive integer or fallback.
+     */
+    function intOr(value, fallback){ // Define int parser with fallback
+      const n = parseInt(value, 10); // Parse integer base 10
+      return (Number.isFinite(n) && n > 0) ? n : fallback; // Use parsed if valid, else fallback
+    } // End intOr()
+
+    /**
+     * updatePersonHeader(personNode): sets the card header title/subtitle using inputs.
+     */
+    function updatePersonHeader(personNode){ // Update header text
+      const name = personNode.querySelector("[data-name]").value.trim() || "New person"; // Use name or default
+      personNode.querySelector("[data-title]").textContent = name; // Update title
+      personNode.querySelector("[data-subtitle]").textContent = "Enter pay details below"; // Fixed subtitle
+    } // End updatePersonHeader()
+    /**
+     * calcPerson(personNode):
+     * @param {HTMLElement} personNode - The person card root element.
+     * @returns {{
+     *   grossW:number, dedW:number, netW:number,
+     *   grossY:number, dedY:number, netY:number
+     * }} Totals used by the grand summary.
+     *
+     * What it does:
+     * - Reads *all* job boxes for this person (rate, hours/week, weeks/year).
+     * - Computes:
+     *   • Weekly gross  = sum(rate * hours) + weekly extra pay
+     *   • Yearly gross  = sum((rate * hours) * jobWeeks) + (weekly extra * workingWeeks) + yearly extra
+     * - Deductions are accumulated in YEARLY terms, then converted back to an average "per working week":
+     *   • fixed_week    -> value * workingWeeks
+     *   • percent_gross -> grossY * (value/100)
+     *   • per_hour      -> value * sum(hours * jobWeeks)
+     *   • fixed_year    -> value
+     *
+     * Working weeks estimate:
+     * - totalJobWeeks = sum of all job weeks/year (job-weeks)
+     * - workingWeeks  = min(52, totalJobWeeks)
+     *   (Assumes jobs can occur in different weeks, but the calendar caps at 52.)
+     */
+    function calcPerson(personNode){ // Calculate a single person
+
+      // ---- Jobs ----
+      const jobNodes = Array.from(personNode.querySelectorAll("[data-job]")); // All job boxes for this person
+
+      const jobs = jobNodes.map(j => { // Convert DOM -> numbers
+        const rate  = num(j.querySelector("[data-job-rate]")?.value); // Rate
+        const hours = num(j.querySelector("[data-job-hours]")?.value); // Hours/week
+        const rawWeeks = parseInt(j.querySelector("[data-job-weeks]")?.value ?? "", 10); // Weeks/year (raw)
+        const weeks = (Number.isFinite(rawWeeks) && rawWeeks >= 0) ? rawWeeks : 52; // Weeks/year (default 52; allow 0)
+        return { rate, hours, weeks }; // Job object
+      }); // End map
+
+      const bonusW = num(personNode.querySelector("[data-bonusW]").value); // Weekly extra pay
+      const bonusY = num(personNode.querySelector("[data-bonusY]").value); // Yearly extra pay
+
+      // Weekly job pay = sum(rate * hours)
+      const jobsPayW = jobs.reduce((s, j) => s + (j.rate * j.hours), 0); // Combined jobs weekly pay
+      const grossW = jobsPayW + bonusW; // Weekly gross (jobs total + weekly extra)
+
+      // Estimated working weeks/year (auto):
+      // - totalJobWeeks = sum of each job's weeks/year (job-weeks)
+      // - workWeeks caps at 52 calendar weeks (assumes jobs may happen in different weeks)
+      const totalJobWeeks = jobs.reduce((s, j) => s + (j.weeks > 0 ? j.weeks : 0), 0); // Sum of job-weeks/year
+      let workWeeks = Math.min(52, totalJobWeeks); // Cap at 52 calendar weeks
+      if(!Number.isFinite(workWeeks) || workWeeks <= 0) workWeeks = 52; // Fallback to 52
+
+      // Update UI helpers (if present)
+      const wwEl = personNode.querySelector("[data-workweeks-auto]"); // Auto work weeks display
+      const twEl = personNode.querySelector("[data-jobweeks-sum]"); // Total job-weeks display
+      if(wwEl) wwEl.textContent = String(workWeeks); // Render auto weeks
+      if(twEl) twEl.textContent = String(totalJobWeeks); // Render sum weeks
+
+      // Yearly gross: sum(job weekly pay * that job's weeks) + (weekly extra * working weeks) + yearly extra
+      const jobsPayY = jobs.reduce((s, j) => s + ((j.rate * j.hours) * j.weeks), 0); // Yearly jobs pay
+      const grossY = jobsPayY + (bonusW * workWeeks) + bonusY; // Yearly gross estimate
+
+      // ---- Deductions (computed in YEARLY terms) ----
+      let dedY = 0; // Accumulator for yearly deductions
+      const dedRows = personNode.querySelectorAll("[data-deduction]"); // All deduction rows
+
+      dedRows.forEach(row => { // Loop over each deduction row
+        const type = row.querySelector("[data-ded-type]").value; // Deduction type
+        const value = num(row.querySelector("[data-ded-value]").value); // Deduction value
+
+        if(type === "fixed_week"){ // Fixed weekly deduction
+          dedY += value * workWeeks; // Convert to yearly using working weeks
+        } else if(type === "percent_gross"){ // Percent of gross
+          dedY += grossY * (value / 100); // Apply percent to yearly gross
+        } else if(type === "per_hour"){ // Per-hour deduction
+          dedY += jobs.reduce((s, j) => s + (value * j.hours * j.weeks), 0); // $/hour * sum(hours*weeks)
+        } else if(type === "fixed_year"){ // Fixed yearly deduction
+          dedY += value; // Add directly
+        } // End type checks
+      }); // End forEach
+
+      const dedW = (workWeeks > 0) ? (dedY / workWeeks) : 0; // Average deductions per working week
+      const netW = Math.max(0, grossW - dedW); // Weekly net (clamped at 0)
+      const netY = Math.max(0, grossY - dedY); // Yearly net (clamped at 0)
+
+      // Update person UI (weekly)
+      personNode.querySelector("[data-grossW]").textContent = money(grossW); // Render weekly gross
+      personNode.querySelector("[data-dedW]").textContent   = money(dedW);   // Render weekly deductions
+      personNode.querySelector("[data-netW]").textContent   = money(netW);   // Render weekly net
+
+      // Update person UI (yearly)
+      personNode.querySelector("[data-grossY]").textContent = money(grossY); // Render yearly gross
+      personNode.querySelector("[data-dedY]").textContent   = money(dedY);   // Render yearly deductions
+      personNode.querySelector("[data-netY]").textContent   = money(netY);   // Render yearly net
+
+      return { grossW, dedW, netW, grossY, dedY, netY }; // Return totals for summary
+    } // End calcPerson()
+    /**
+     * calcAll():
+     * - Loops over every person card on the page
+     * - Keeps each header (name/title) in sync
+     * - Recomputes each person's totals
+     * - Aggregates grand totals + averages into the summary panel
+     */
+    function calcAll(){ // Calculate the entire page totals
+      const persons = peopleEl.querySelectorAll("[data-person]"); // All person nodes
+      let sumGrossW = 0, sumDedW = 0, sumNetW = 0; // Weekly accumulators
+      let sumGrossY = 0, sumDedY = 0, sumNetY = 0; // Yearly accumulators
+
+      persons.forEach(p => { // Loop through each person
+        updatePersonHeader(p); // Keep header synced with inputs
+        const r = calcPerson(p); // Compute person totals
+        sumGrossW += r.grossW; // Accumulate weekly gross
+        sumDedW   += r.dedW;   // Accumulate weekly deductions
+        sumNetW   += r.netW;   // Accumulate weekly net
+        sumGrossY += r.grossY; // Accumulate yearly gross
+        sumDedY   += r.dedY;   // Accumulate yearly deductions
+        sumNetY   += r.netY;   // Accumulate yearly net
+      }); // End loop
+
+      const count = persons.length; // Number of people
+      peopleCountEl.textContent = `${count} ${count === 1 ? "person" : "people"}`; // Update footer count
+      sumPeopleEl.textContent = String(count); // Update summary count
+
+      sumGrossWEl.textContent = money(sumGrossW); // Render summary weekly gross
+      sumDedWEl.textContent   = money(sumDedW);   // Render summary weekly deductions
+      sumNetWEl.textContent   = money(sumNetW);   // Render summary weekly net
+
+      sumGrossYEl.textContent = money(sumGrossY); // Render summary yearly gross
+      sumDedYEl.textContent   = money(sumDedY);   // Render summary yearly deductions
+      sumNetYEl.textContent   = money(sumNetY);   // Render summary yearly net
+
+      avgNetWEl.textContent   = money(count ? (sumNetW / count) : 0); // Render average weekly net
+      avgNetYEl.textContent   = money(count ? (sumNetY / count) : 0); // Render average yearly net
+
+      if(count === 0){ // If there are no people
+        peopleEl.innerHTML = `<div class="emptyState">No people yet. Click <strong>+ Add person</strong> to start.</div>`; // Show empty state
+      } // End if
+    } // End calcAll()
+
+    /**
+     * addDeductionRow(dedListEl):
+     * - Clones the deduction template
+     * - Wires up remove button and recalculation events
+     * - Appends to the provided list element
+     */
+    function addDeductionRow(dedListEl){ // Add one deduction row
+      const row = deductionTemplate.content.firstElementChild.cloneNode(true); // Clone template content
+
+      row.querySelector("[data-remove-deduction]").addEventListener("click", () => { // Remove click handler
+        row.remove(); // Remove row from DOM
+        calcAll(); // Recalculate totals
+      }); // End handler
+
+      row.querySelectorAll("input, select").forEach(el => { // Hook recalc on changes
+        el.addEventListener("input", calcAll); // Recalc while typing
+        el.addEventListener("change", calcAll); // Recalc on select change
+      }); // End forEach
+
+      dedListEl.appendChild(row); // Add row to the list
+    } // End addDeductionRow()
+
+    /**
+     * renumberJobs(personNode):
+     * - Updates Job titles (Job 1, Job 2, ...)
+     * - Shows/hides the remove button when only 1 job remains
+     */
+    function renumberJobs(personNode){ // Renumber jobs in this person
+      const jobs = Array.from(personNode.querySelectorAll("[data-job]")); // All jobs
+      jobs.forEach((job, idx) => { // Loop
+        const title = job.querySelector("[data-job-title]"); // Title element
+        if(title) title.textContent = `Job ${idx + 1}`; // Update title
+
+        const rm = job.querySelector("[data-remove-job]"); // Remove button
+        if(rm){
+          rm.classList.toggle("hidden", jobs.length <= 1); // Hide remove if only one job
+        } // End if
+      }); // End loop
+    } // End renumberJobs()
+
+    /**
+     * addJob(personNode, prefill):
+     * - Adds a new job box inside the person
+     * - Wires up remove + recalculation events
+     */
+    function addJob(personNode, prefill = {}){ // Add one job
+      const jobsListEl = personNode.querySelector("[data-jobs-list]"); // Jobs list container
+      if(!jobsListEl || !jobTemplate) return; // Safety
+
+      const job = jobTemplate.content.firstElementChild.cloneNode(true); // Clone job template
+
+      // Prefill values
+      job.querySelector("[data-job-rate]").value  = prefill.rate  ?? ""; // Rate
+      job.querySelector("[data-job-hours]").value = prefill.hours ?? ""; // Hours/week
+      job.querySelector("[data-job-weeks]").value = prefill.weeks ?? "52"; // Weeks/year (default 52)
+
+      // Remove job handler
+      job.querySelector("[data-remove-job]").addEventListener("click", () => { // On remove
+        job.remove(); // Remove from DOM
+        renumberJobs(personNode); // Update titles / buttons
+        calcAll(); // Recalculate totals
+      }); // End handler
+
+      // Recalculate on edits
+      job.querySelectorAll("input, select").forEach(el => { // Inputs inside job
+        el.addEventListener("input", calcAll); // Live recalculation
+        el.addEventListener("change", calcAll); // Recalculation on change
+      }); // End forEach
+
+      jobsListEl.appendChild(job); // Add to list
+      renumberJobs(personNode); // Update titles / buttons
+    } // End addJob()
+    /**
+     * addPerson(prefill):
+     * @param {Object} prefill - Optional seed data for quick setup/testing.
+     *
+     * What it does:
+     * - Removes the empty state message (if present)
+     * - Clones the <template> for a person card
+     * - Adds 1+ jobs (default is one job with 52 weeks/year)
+     * - Adds one default deduction row
+     * - Wires all event listeners for inputs/buttons so totals update live
+     * - Appends the card, scrolls into view, then recalculates
+     */
+    function addPerson(prefill = {}){ // Add a new person card
+      const empty = peopleEl.querySelector(".emptyState"); // Find empty state (if present)
+      if(empty) peopleEl.innerHTML = ""; // Remove empty state if found
+
+      const person = personTemplate.content.firstElementChild.cloneNode(true); // Clone person template
+
+      // Grab inputs for prefill (non-job fields)
+      const nameEl = person.querySelector("[data-name]"); // Name input
+      const bonusWEl = person.querySelector("[data-bonusW]"); // Weekly bonus input
+      const bonusYEl = person.querySelector("[data-bonusY]"); // Yearly bonus input
+      const dedListEl = person.querySelector("[data-deduction-list]"); // Deduction list container
+
+      // Apply prefill values (or defaults)
+      nameEl.value = prefill.name ?? ""; // Prefill name
+      bonusWEl.value = prefill.bonusW ?? ""; // Prefill weekly bonus
+      bonusYEl.value = prefill.bonusY ?? ""; // Prefill yearly bonus
+      // Jobs: add at least one job. You can pass prefill.jobs = [{rate,hours,weeks}, ...]
+      const addJobBtn = person.querySelector("[data-add-job]"); // Add job button
+      if(addJobBtn){
+        addJobBtn.addEventListener("click", () => { // Add job on click
+          addJob(person, {}); // Add empty job
+          calcAll(); // Recalculate
+        }); // End handler
+      } // End if
+
+      const jobsPrefill = Array.isArray(prefill.jobs) && prefill.jobs.length ? prefill.jobs : [{ weeks: "52" }]; // Default one job
+      jobsPrefill.forEach(j => addJob(person, j)); // Add jobs
+
+      // Add default first deduction row
+      addDeductionRow(dedListEl); // Add one deduction row initially
+
+      // Deduction add action (both buttons use the same handler)
+      const addDeduction = () => { // Define handler to add a row
+        addDeductionRow(dedListEl); // Add row
+        calcAll(); // Recalculate totals
+      }; // End handler def
+
+      person.querySelector("[data-add-deduction]").addEventListener("click", addDeduction); // Top add button
+      person.querySelector("[data-add-deduction-inline]").addEventListener("click", addDeduction); // Inline add button
+
+      // Remove person handler
+      person.querySelector("[data-remove-person]").addEventListener("click", () => { // Remove click handler
+        person.remove(); // Remove this person card
+        calcAll(); // Recalculate totals
+      }); // End handler
+
+      // Recalculate whenever non-job input/select changes within this person card
+      person.querySelectorAll("input, select").forEach(el => { // Loop through fields
+        if(el.closest("[data-job]")) return; // Jobs already wired in addJob()
+        el.addEventListener("input", calcAll); // Live recalculation
+        el.addEventListener("change", calcAll); // Recalculation on selection changes
+      }); // End forEach
+
+      // Add person to the DOM
+      peopleEl.appendChild(person); // Append the new person card
+
+      // Highlight + scroll the new person into view
+      person.classList.add("newlyAdded"); // Add highlight class
+      person.scrollIntoView({ behavior: "smooth", block: "start" }); // Scroll smoothly to new card
+      setTimeout(() => person.classList.remove("newlyAdded"), 1200); // Remove highlight later
+
+      calcAll(); // Run calculation to update totals
+    } // End addPerson()
+// ---------- Page-level event listeners ----------
+
+    addPersonBtn.addEventListener("click", () => addPerson()); // Add person on click
+
+    resetBtn.addEventListener("click", () => { // Reset button handler (opens popup)
+
+      // If the browser supports <dialog>, use the cozy modal.
+      if (resetDialog && typeof resetDialog.showModal === "function") { // Check dialog support
+        resetDialog.showModal(); // Open the confirmation dialog
+        return; // Stop here (wait for user choice)
+      } // End dialog support check
+
+      // Fallback for older browsers: use built-in confirm().
+      const ok = confirm("Reset everything? This will remove all people and deductions."); // Ask user
+      if (ok) { // If user confirmed
+        peopleEl.innerHTML = ""; // Clear all people
+        calcAll(); // Recompute (will show empty state)
+      } // End if
+    }); // End reset handler
+
+    // "Yes" button: user confirmed reset.
+    resetYesBtn.addEventListener("click", () => { // Confirm reset
+      resetDialog.close(); // Close the dialog
+      peopleEl.innerHTML = ""; // Clear all people
+      calcAll(); // Recompute (will show empty state)
+    }); // End yes handler
+
+    // "No" button: user canceled reset.
+    resetNoBtn.addEventListener("click", () => { // Cancel reset
+      resetDialog.close(); // Close the dialog without changes
+    }); // End no handler
+
+    // Optional: clicking outside the dialog can also close it (treat as "No").
+    resetDialog.addEventListener("click", (e) => { // Click handler on dialog
+      const rect = resetDialog.getBoundingClientRect(); // Get dialog bounds
+      const inDialog = ( // Check if click was inside the dialog box
+        e.clientX >= rect.left && e.clientX <= rect.right &&
+        e.clientY >= rect.top  && e.clientY <= rect.bottom
+      ); // End inDialog calc
+      if (!inDialog) resetDialog.close(); // If outside, close dialog
+    }); // End backdrop click handler
+
+
+    // ---------- Initial state ----------
+    addPerson({ name: "Person 1", jobs: [{ weeks: "52" }] }); // Add first person by default
+
+  </script> <!-- End JavaScript -->
+</body> <!-- End body -->
+</html> <!-- End document -->
