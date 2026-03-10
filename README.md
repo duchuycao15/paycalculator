@@ -1,3 +1,5 @@
 # paycalculator
 
-I feel like i took so many hour just to pull out my phone and type how mucch i make for a week and then mutipleyr by 4 ... so I made this webpage and it's easy for me to calculather the total Pay.
+I feel like I spent so many hours just to pull out my phone 📱 and 
+I type how much I made for a week ⏱️, then multiplied it by 4 🧮…
+So I made this webpage 💻, and it’s easy for me to calculate the total pay 💵.
