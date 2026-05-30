@@ -9,4 +9,6 @@ I type how much I made for a week ⏱️, then multiplied it by 4 🧮…
 So I made this webpage 💻, and it’s easy for me to calculate the total pay 💵.
 
 Update: 
-  1. adjust the color background of the website. 
+  1. adjust the color background of the website.
+  2. Make the website more stand out
+  3. 
