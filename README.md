@@ -11,4 +11,4 @@ So I made this webpage 💻, and it’s easy for me to calculate the total pay �
 Update: 
   1. adjust the color background of the website.
   2. Make the website more stand out
-  3. 
+  3. Adjust the page for this
