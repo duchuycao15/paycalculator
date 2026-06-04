@@ -13,3 +13,4 @@ Update:
   2. Make the website more stand out
   3. Adjust the page for this
   4. Tui không thích giao diện này cần phải tối giản và có phong cách retro, giống như cái profolito của tui.
+  5. Chỉnh cho hay hơn
