@@ -12,4 +12,4 @@ Update:
   1. adjust the color background of the website.
   2. Make the website more stand out
   3. Adjust the page for this
-  4. Tui không thích giao diện này cần phải tối giản và có phong cách retro
+  4. Tui không thích giao diện này cần phải tối giản và có phong cách retro, giống như cái profolito của tui.
