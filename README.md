@@ -16,3 +16,4 @@ Update:
   5. Chỉnh cho hay hơn
   6. Latest update change the layout
   7. Chỉnh lại ứng dụng hay hơn
+  8. Chỉnh lại cho thuần giao diện với máy tính bấm hơn
