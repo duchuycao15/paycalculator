@@ -17,3 +17,4 @@ Update:
   6. Latest update change the layout
   7. Chỉnh lại ứng dụng hay hơn
   8. Chỉnh lại cho thuần giao diện với máy tính bấm hơn
+  9. CHỉnh giao diện thuần máy tính
